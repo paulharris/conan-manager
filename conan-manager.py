@@ -21,7 +21,7 @@ re_pack_ver = re.compile("(.*)/(.*)")
 parser = argparse.ArgumentParser()
 parser.add_argument('action')
 parser.add_argument('--lockfile', type=argparse.FileType('r'))
-parser.add_argument('--mxdepfile', type=argparse.FileType('r'))
+parser.add_argument('--depfile', type=argparse.FileType('r'))
 parser.add_argument('--profile', type=argparse.FileType('r'))
 
 parser.add_argument('--out_depfilename')
@@ -110,7 +110,7 @@ def check_dep(deps, remote, name):
             "--json",
             TEMPFILE,
             "--remote",
-            REMOTE,
+            remote,
             f"{name}/{ver}@" # just look for the base user/channel ... {user}/{channel}",
          ]
          , capture_output=True
@@ -158,8 +158,7 @@ def check_dep(deps, remote, name):
 
 
 if args.action == "dump_lock":
-   if args.lockfile == None:
-      raise Exception("Requires --lockfile")
+   if args.lockfile == None: raise Exception("Requires --lockfile")
 
    deps = {}
 
@@ -192,16 +191,13 @@ if args.action == "dump_lock":
 
 
 elif args.action == "update_with_lock":
-   if args.lockfile == None:
-      raise Exception("Requires --lockfile")
-   if args.mxdepfile == None:
-      raise Exception("Need --mxdepfile")
-   if args.out_depfilename == None:
-      raise Exception("Need --out_depfilename")
+   if args.lockfile == None: raise Exception("Requires --lockfile")
+   if args.depfile == None: raise Exception("Need --depfile")
+   if args.out_depfilename == None: raise Exception("Need --out_depfilename")
 
    print(f"Will write update and add to deps file: {args.out_depfilename}")
 
-   deps = json.load(args.mxdepfile)
+   deps = json.load(args.depfile)
 
    nodes = json.load(args.lockfile)["graph_lock"]["nodes"]
    for dep in nodes:
@@ -233,11 +229,10 @@ elif args.action == "update_with_lock":
 
 
 elif args.action == "conan_upload_one":
-   if args.mxdepfile == None:
-      raise Exception("Need --mxdepfile")
-   if args.depname == None:
-      raise Exception("Need --depname")
-   deps = json.load(args.mxdepfile)
+   if args.depfile == None: raise Exception("Need --depfile")
+   if args.depname == None: raise Exception("Need --depname")
+   if args.remote == None: raise Exception("Need --remote")
+   deps = json.load(args.depfile)
    name = args.depname
    dep = deps[name]
    ver = dep["version"]
@@ -252,7 +247,7 @@ elif args.action == "conan_upload_one":
             "upload",
             "--check",
             "--remote",
-            REMOTE,
+            args.remote,
          ]
 
    if args.upload_packages:
@@ -266,9 +261,9 @@ elif args.action == "conan_upload_one":
 
 
 elif args.action == "conan_upload_all":
-   if args.mxdepfile == None:
-      raise Exception("Need --mxdepfile")
-   deps = json.load(args.mxdepfile)
+   if args.depfile == None: raise Exception("Need --depfile")
+   if args.remote == None: raise Exception("Need --remote")
+   deps = json.load(args.depfile)
    for name in deps:
       dep = deps[name]
       ver = dep["version"]
@@ -283,7 +278,7 @@ elif args.action == "conan_upload_all":
                "upload",
                "--check",
                "--remote",
-               REMOTE,
+               args.remote,
             ]
       if args.upload_packages:
          to_exec.append("--all")
@@ -296,10 +291,8 @@ elif args.action == "conan_upload_all":
 
 
 elif args.action == "conan_create":
-   if args.mxdepfile == None:
-      raise Exception("Need --mxdepfile")
-   if args.profile == None:
-      raise Exception("Need --profile")
+   if args.depfile == None: raise Exception("Need --depfile")
+   if args.profile == None: raise Exception("Need --profile")
    if args.depname == None: raise Exception("Need --depname")
    if args.depversion == None: raise Exception("Need --depversion")
    if args.depuser == None: raise Exception("Need --depuser")
@@ -324,7 +317,7 @@ elif args.action == "conan_create":
          "-pr:b", args.profile.name
          ])
 
-   deps = json.load(args.mxdepfile)
+   deps = json.load(args.depfile)
    for name in deps:
       if name != args.depname:
          req = deps[name]
@@ -338,10 +331,8 @@ elif args.action == "conan_create":
 
 
 elif args.action == "conan_install":
-   if args.mxdepfile == None:
-      raise Exception("Need --mxdepfile")
-   if args.profile == None:
-      raise Exception("Need --profile")
+   if args.depfile == None: raise Exception("Need --depfile")
+   if args.profile == None: raise Exception("Need --profile")
    print(f"Using profile {args.profile.name}")
    to_exec=[
          "conan", "install",
@@ -365,7 +356,7 @@ elif args.action == "conan_install":
          "-pr:b", args.profile.name
          ])
 
-   deps = json.load(args.mxdepfile)
+   deps = json.load(args.depfile)
    for name in deps:
       req = deps[name]
       # print(f"Req {name} : {req}")
@@ -378,7 +369,9 @@ elif args.action == "conan_install":
 
 
 elif args.action == "print_dep":
-   deps = json.load(args.mxdepfile)
+   if args.depfile == None: raise Exception("Need --depfile")
+   if args.depname == None: raise Exception("Need --depname")
+   deps = json.load(args.depfile)
    name = args.depname
    dep = deps[name]
    ver = dep["version"]
@@ -389,7 +382,7 @@ elif args.action == "print_dep":
 
 
 elif args.action == "print_all_deps":
-   deps = json.load(args.mxdepfile)
+   deps = json.load(args.depfile)
    for name in deps:
       dep = deps[name]
       ver = dep["version"]
@@ -401,7 +394,13 @@ elif args.action == "print_all_deps":
 
 
 elif args.action == "upgrade_dep":
-   deps = json.load(args.mxdepfile)
+   if args.depfile == None: raise Exception("Need --depfile")
+   if args.depname == None: raise Exception("Need --depname")
+   if args.depversion == None: raise Exception("Need --depversion")
+   if args.depuser == None: raise Exception("Need --depuser")
+   if args.depchannel == None: raise Exception("Need --depchannel")
+   if args.deprrev == None: raise Exception("Need --deprrev")
+   deps = json.load(args.depfile)
    deps[args.depname]["version"] = args.depversion
    deps[args.depname]["user"] = args.depuser
    deps[args.depname]["channel"] = args.depchannel
@@ -410,25 +409,18 @@ elif args.action == "upgrade_dep":
 
 
 elif args.action == "upgrade_dep_latest":
-   if args.mxdepfile == None:
-      raise Exception("Need --mxdepfile")
+   if args.depfile == None: raise Exception("Need --depfile")
+   if args.out_depfilename == None: raise Exception("No out filename")
+   if args.depname == None: raise Exception("Need --depname")
+   if args.depversion == None: raise Exception("Need --depversion")
+   if args.remote == None: raise Exception("Need --remote")
 
-   if args.out_depfilename == None:
-      raise Exception("No out filename")
-
-   if args.depname == None:
-      raise Exception("Need --depname")
-
-   if args.depversion == None:
-      raise Exception("Need --depversion")
-
-   deps = json.load(args.mxdepfile)
+   deps = json.load(args.depfile)
    print(f"Will write new deps file to {args.out_depfilename}")
 
    name = args.depname
    ver = args.depversion
-   if name == None or ver == None:
-      raise Exception("Need name + ver")
+   if name == None or ver == None: raise Exception("Need name + ver")
    if os.path.exists(TEMPFILE):
       os.remove(TEMPFILE)
    res = subprocess.run(args=[
@@ -438,7 +430,7 @@ elif args.action == "upgrade_dep_latest":
             "--json",
             TEMPFILE,
             "--remote",
-            REMOTE,
+            args.remote,
             f"{name}/{ver}@",
          ],
          capture_output=True
@@ -457,7 +449,7 @@ elif args.action == "upgrade_dep_latest":
                      "conan",
                      "download",
                      "--recipe",
-                     "-r", REMOTE,
+                     "-r", args.remote,
                      f"{name}/{ver}@#{recipe_rev}"
                   ]
                   # , capture_output=True
@@ -491,10 +483,10 @@ elif args.action == "upgrade_dep_latest":
 
 elif args.action == "copy_all_nouserchannel":
    raise Exception("This is a one-time nuclear option, should not be needed going forward...?")
-   if args.out_depfilename == None:
-      raise Exception("No out filename")
+   if args.depfile == None: raise Exception("Need --depfile")
+   if args.out_depfilename == None: raise Exception("No out filename")
    print(f"Will write new deps file to {args.out_depfilename}")
-   deps = json.load(args.mxdepfile)
+   deps = json.load(args.depfile)
    for name in deps:
       print(f"Checking {name}")
       if deps[name]["user"] == "_" and deps[name]["channel"] == "_":
@@ -518,6 +510,10 @@ elif args.action == "copy_all_nouserchannel":
 
 
 elif args.action == "download_dep_to_cciver":
+   if args.depname == None: raise Exception("Need --depname")
+   if args.depversion == None: raise Exception("Need --depversion")
+   if args.deprrev == None: raise Exception("Need --deprrev")
+   if args.remote == None: raise Exception("Need --remote")
    name = args.depname
    ver = args.depversion
    recipe_rev = args.deprrev
@@ -527,7 +523,7 @@ elif args.action == "download_dep_to_cciver":
             "conan",
             "download",
             "--recipe",
-            "-r", REMOTE,
+            "-r", args.remote,
             f"{name}/{ver}@#{recipe_rev}"
          ]
          # , capture_output=True
@@ -545,10 +541,9 @@ elif args.action == "download_dep_to_cciver":
 
 # check newer recipe revisions for a particular version
 elif args.action == "check_dep_ver":
-   if args.depname == None:
-      raise Exception("Need --depname")
-   if args.depversion == None:
-      raise Exception("Need --depversion")
+   if args.depname == None: raise Exception("Need --depname")
+   if args.depversion == None: raise Exception("Need --depversion")
+   if args.remote == None: raise Exception("Need --remote")
    name = args.depname
    ver = args.depversion
    print(f"Checking dependency {name}/{ver}@")
@@ -562,7 +557,7 @@ elif args.action == "check_dep_ver":
             "--json",
             TEMPFILE,
             "--remote",
-            REMOTE,
+            args.remote,
             f"{name}/{ver}@",
          ],
          capture_output=True
@@ -586,7 +581,8 @@ elif args.action == "check_dep_ver":
 
 
 elif args.action == "check_all_mainline":
-   deps = json.load(args.mxdepfile)
+   if args.depfile == None: raise Exception("Need --depfile")
+   deps = json.load(args.depfile)
    for name in deps:
       dep = deps[name]
       ver = dep["version"]
@@ -598,25 +594,20 @@ elif args.action == "check_all_mainline":
 
 
 elif args.action == "check_dep":
-   if args.mxdepfile == None:
-      raise Exception("Need --mxdepfile")
-   if args.remote == None:
-      raise Exception("Need --remote")
-   if args.depname == None:
-      raise Exception("Need --depname")
+   if args.depfile == None: raise Exception("Need --depfile")
+   if args.remote == None: raise Exception("Need --remote")
+   if args.depname == None: raise Exception("Need --depname")
 
-   deps = json.load(args.mxdepfile)
+   deps = json.load(args.depfile)
    check_dep(deps, args.remote, args.depname)
 
 
 
 # check newer recipe revisions for current version
 elif args.action == "check_all_deps":
-   if args.mxdepfile == None:
-      raise Exception("Need --mxdepfile")
-   if args.remote == None:
-      raise Exception("Need --remote")
-   deps = json.load(args.mxdepfile)
+   if args.depfile == None: raise Exception("Need --depfile")
+   if args.remote == None: raise Exception("Need --remote")
+   deps = json.load(args.depfile)
    for name in sorted(deps):
       check_dep(deps, args.remote, name)
       print("\n\n")
