@@ -11,8 +11,6 @@ import argparse
 # To allow QT to build locally
 os.environ["NOT_ON_C3I"] = "1"
 
-TEMPFILE = "conan-parse-lock.temp"
-
 re_ref_with_user = re.compile("(.*)/(.*)@(.*)/(.*)#(.*)")
 re_ref_without_user = re.compile("(.*)/(.*)#(.*)")
 re_pack_ver = re.compile("(.*)/(.*)")
@@ -50,6 +48,8 @@ args = parser.parse_args()
 
 
 def check_dep(deps, remote, name):
+   TEMPFILE = "conan-check-dep.temp"
+
    dep = deps[name]
    ver = dep["version"]
    user = dep["user"]
@@ -409,6 +409,7 @@ elif args.action == "upgrade_dep":
 
 
 elif args.action == "upgrade_dep_latest":
+   TEMPFILE = "conan-upgrade-dep-latest.temp"
    if args.depfile == None: raise Exception("Need --depfile")
    if args.out_depfilename == None: raise Exception("No out filename")
    if args.depname == None: raise Exception("Need --depname")
@@ -541,6 +542,7 @@ elif args.action == "download_dep_to_cciver":
 
 # check newer recipe revisions for a particular version
 elif args.action == "check_dep_ver":
+   TEMPFILE = "conan-check-dep-ver.temp"
    if args.depname == None: raise Exception("Need --depname")
    if args.depversion == None: raise Exception("Need --depversion")
    if args.remote == None: raise Exception("Need --remote")
