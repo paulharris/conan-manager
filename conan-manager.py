@@ -445,6 +445,7 @@ elif args.action == "upgrade_dep_latest":
             entry = entries[0]  # first one is the newest one, it seems
             print(f"Using revision time {entry['time']}")
             recipe_rev = entry["revision"]
+            new_channel = recipe_rev[:6]    # NOTE: only use first 6 chars of recipe revision!
 
             res = subprocess.run(args=[
                      "conan",
@@ -460,7 +461,7 @@ elif args.action == "upgrade_dep_latest":
                      "conan",
                      "copy",
                      f"{name}/{ver}@#{recipe_rev}",
-                     f"cci/{recipe_rev}"
+                     f"cci/{new_channel}"
                   ]
                   # , capture_output=True
                )
@@ -476,7 +477,7 @@ elif args.action == "upgrade_dep_latest":
 
             deps[name]["version"] = ver
             deps[name]["user"] = "cci"
-            deps[name]["channel"] = recipe_rev
+            deps[name]["channel"] = new_channel
             deps[name]["recipe_rev"] = recipe_rev
             with open(args.out_depfilename,"w") as file:
                print(json.dump(deps, file, indent=True, sort_keys=True))
@@ -494,13 +495,14 @@ elif args.action == "copy_all_nouserchannel":
          print(f"COPYING {name}\n")
          ver = deps[name]["version"]
          recipe_rev = deps[name]["recipe_rev"]
+         new_channel = recipe_rev[:6]    # NOTE: only use first 6 chars of recipe revision!
          deps[name]["user"] = "cci"
-         deps[name]["channel"] = recipe_rev
+         deps[name]["channel"] = new_channel
          res = subprocess.run(args=[
                   "conan",
                   "copy",
                   f"{name}/{ver}@#{recipe_rev}",
-                  f"cci/{recipe_rev}"
+                  f"cci/{new_channel}"
                ]
                # , capture_output=True
             )
@@ -518,7 +520,7 @@ elif args.action == "download_dep_to_cciver":
    name = args.depname
    ver = args.depversion
    recipe_rev = args.deprrev
-   # short_rrev = recipe_rev.slice(6) # use 6 chars of the hash as short ident
+   new_channel = recipe_rev[:6]    # NOTE: only use first 6 chars of recipe revision!
 
    res = subprocess.run(args=[
             "conan",
@@ -534,7 +536,7 @@ elif args.action == "download_dep_to_cciver":
             "conan",
             "copy",
             f"{name}/{ver}@#{recipe_rev}",
-            f"cci/{recipe_rev}"
+            f"cci/{new_channel}"
          ]
          # , capture_output=True
       )
