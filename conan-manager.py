@@ -617,6 +617,51 @@ elif args.action == "check_all_deps":
       print("\n\n")
 
 
+elif args.action == "delete_unused":
+   TEMPFILE = "conan-delete-unused.temp"
+   if args.depfile == None: raise Exception("Need --depfile")
+   deps = json.load(args.depfile)
+   all_used = []
+   for name in sorted(deps):
+       dep = deps[name]
+       ver = dep["version"]
+       user = dep["user"]
+       channel = dep["channel"]
+       all_used.append(f"{name}/{ver}@{user}/{channel}")
+       all_used.append(f"{name}/{ver}")
+
+   res = subprocess.run(args=[
+            "conan",
+            "search",
+            "--json",
+            TEMPFILE,
+         ]
+         , capture_output=True
+      )
+
+   if not os.path.exists(TEMPFILE):
+      raise Exception("error searching local packages")
+
+   local_packs = json.load(open(TEMPFILE))
+   print(local_packs)
+
+   if local_packs['error'] != False:
+      raise Exception(f"Error checking local packages ({local_packs['error']})")
+
+   if len(local_packs['results']) == 0:
+      raise Exception("No local packages found")
+
+   for ritem in local_packs['results'][0]['items']:
+      local_pack = ritem["recipe"]["id"]
+      if "@" not in local_pack:
+          print(f"Will want to KEEP mainline {local_pack}")
+      elif local_pack in all_used:
+          print(f"Will want to KEEP {local_pack}")
+      else:
+          print(f"Will want to delete {local_pack}")
+          subprocess.run(args=["conan", "remove", "-f", local_pack])
+
+
 else:
    print("""
 Invalid action
@@ -644,6 +689,8 @@ Options:
     check_all_mainline
     check_dep
     check_all_deps
+
+    delete_unused
    """)
 
 
