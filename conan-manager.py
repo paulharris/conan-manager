@@ -43,6 +43,8 @@ parser.add_argument('--build_missing')
 # for conan_install, to specify a specific generator
 parser.add_argument('--cmake_generator')
 
+parser.add_argument('--conan_option')
+
 args = parser.parse_args()
 
 
@@ -339,6 +341,9 @@ elif args.action == "conan_install":
          ".",
          "-if", "build",
          ]
+
+   if args.conan_option:
+       to_exec.extend(["-o", args.conan_option])
 
    if args.build_missing:
        to_exec.extend(["--build", "missing"])
