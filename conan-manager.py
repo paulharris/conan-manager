@@ -39,11 +39,16 @@ parser.add_argument('--upload_packages')
 parser.add_argument('--use_single_profile')
 
 parser.add_argument('--build_missing')
+parser.add_argument('--build_folder')
+
+# for delete_unused
+parser.add_argument('--dry_run')
 
 # for conan_install, to specify a specific generator
 parser.add_argument('--cmake_generator')
 
 parser.add_argument('--conan_option')
+parser.add_argument('--keep_source')
 
 args = parser.parse_args()
 
@@ -123,6 +128,7 @@ def check_dep(deps, remote, name):
       return
 
    revisions = json.load(open(TEMPFILE))
+   os.remove(TEMPFILE)
 
 
    current_rev_time = None
@@ -309,6 +315,9 @@ elif args.action == "conan_create":
    if args.build_missing:
        to_exec.extend(["--build", "missing"])
 
+   if args.keep_source:
+       to_exec.extend(["--keep-source"])
+
    if args.use_single_profile:
       # required for bug: https://github.com/conan-io/conan/issues/12437
       # ie when building harfbuzz on windows (2022 Nov)
@@ -335,11 +344,14 @@ elif args.action == "conan_create":
 elif args.action == "conan_install":
    if args.depfile == None: raise Exception("Need --depfile")
    if args.profile == None: raise Exception("Need --profile")
+   if args.build_folder == None: raise Exception("Need --build_folder")
    print(f"Using profile {args.profile.name}")
+   print(f"Generating build files in {args.build_folder}")
    to_exec=[
          "conan", "install",
          ".",
-         "-if", "build",
+         "-if", args.build_folder,
+         "-of", args.build_folder,
          ]
 
    if args.conan_option:
@@ -367,6 +379,20 @@ elif args.action == "conan_install":
       # print(f"Req {name} : {req}")
       to_exec.append("--require-override")
       to_exec.append(f"{name}/{req['version']}@{req['user']}/{req['channel']}#{req['recipe_rev']}")
+
+   print(f"Will execute: {to_exec}")
+   res = subprocess.run(to_exec) # , capture_output=True)
+   # print(res.stdout)
+
+
+elif args.action == "conan_build":
+   if args.build_folder == None: raise Exception("Need --build_folder")
+   print(f"Building in {args.build_folder}")
+   to_exec=[
+         "conan", "build",
+         ".",
+         "-bf", args.build_folder,
+         ]
 
    print(f"Will execute: {to_exec}")
    res = subprocess.run(to_exec) # , capture_output=True)
@@ -486,6 +512,7 @@ elif args.action == "upgrade_dep_latest":
             deps[name]["recipe_rev"] = recipe_rev
             with open(args.out_depfilename,"w") as file:
                print(json.dump(deps, file, indent=True, sort_keys=True))
+         os.remove(TEMPFILE)
 
 
 elif args.action == "copy_all_nouserchannel":
@@ -585,6 +612,7 @@ elif args.action == "check_dep_ver":
             rev_time = entry["time"]
             rev = entry["revision"]
             print(f"{name} rev:{rev} @ {rev_time}")
+      os.remove(TEMPFILE)
    else:
       print(f"{name}/{ver}@ -- no revisions found on remote for this version")
 
@@ -648,6 +676,7 @@ elif args.action == "delete_unused":
       raise Exception("error searching local packages")
 
    local_packs = json.load(open(TEMPFILE))
+   os.remove(TEMPFILE)
    print(local_packs)
 
    if local_packs['error'] != False:
@@ -664,7 +693,8 @@ elif args.action == "delete_unused":
           print(f"Will want to KEEP {local_pack}")
       else:
           print(f"Will want to delete {local_pack}")
-          subprocess.run(args=["conan", "remove", "-f", local_pack])
+          if not args.dry_run:
+              subprocess.run(args=["conan", "remove", "-f", local_pack])
 
 
 else:
